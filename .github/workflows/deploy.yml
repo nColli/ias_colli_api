@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy to DEV (Render)
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_DEV }}" \
+            -o /dev/null -w "HTTP status: %{http_code}\n"
+
+  deploy-qa:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy to QA (Render)
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_QA }}" \
+            -o /dev/null -w "HTTP status: %{http_code}\n"
+
+  deploy-prd:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger deploy to PRD (Render)
+        run: |
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_PRD }}" \
+            -o /dev/null -w "HTTP status: %{http_code}\n"
