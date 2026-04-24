@@ -1,10 +1,5 @@
-from flask import Flask
-from flask_restful import Resource, Api, reqparse
+from flask_restful import Resource, reqparse
 
-app = Flask(__name__)
-api = Api(app)
-
-# Datos en memoria
 users = [
     {"id": 1, "nombre": "Juan", "apellido": "Perez", "rol": "admin"},
     {"id": 2, "nombre": "Ana", "apellido": "Garcia", "rol": "user"},
@@ -15,6 +10,9 @@ parser.add_argument("nombre", required=True, help="nombre requerido")
 parser.add_argument("apellido", required=True, help="apellido requerido")
 parser.add_argument("rol", required=True, help="rol requerido")
 
+class Health(Resource):
+    def get(self):
+        return {"status": "ok"}, 200
 
 class UserList(Resource):
     def get(self):
@@ -31,7 +29,6 @@ class UserList(Resource):
         }
         users.append(user)
         return user, 201
-
 
 class User(Resource):
     def get(self, user_id):
@@ -56,12 +53,7 @@ class User(Resource):
         users = [u for u in users if u["id"] != user_id]
         return {"deleted": user}, 200
 
-
-class Health(Resource):
-    def get(self):
-        return {"status": "ok"}, 200
-
-
-api.add_resource(Health, "/health")
-api.add_resource(UserList, "/users")
-api.add_resource(User, "/users/<int:user_id>")
+def register_routes(api):
+    api.add_resource(Health, "/health")
+    api.add_resource(UserList, "/users")
+    api.add_resource(User, "/users/<int:user_id>")
