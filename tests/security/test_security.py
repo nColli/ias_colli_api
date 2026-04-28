@@ -1,14 +1,20 @@
 import pytest
-import app.routes as routes_module
-from app import app
+from app import create_app
+from app.db import get_connection
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 @pytest.fixture
 def client():
+    app = create_app()
     app.config["TESTING"] = True
-    routes_module.users = [
-        {"id": 1, "nombre": "Juan", "apellido": "Perez", "rol": "admin"},
-        {"id": 2, "nombre": "Ana", "apellido": "Garcia", "rol": "user"},
-    ]
     with app.test_client() as client:
         yield client
 
