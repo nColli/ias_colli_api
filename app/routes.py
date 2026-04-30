@@ -1,10 +1,16 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
+from flask import request, jsonify
 from .db import get_connection
 
-parser = reqparse.RequestParser()
-parser.add_argument("nombre", required=True, help="nombre requerido")
-parser.add_argument("apellido", required=True, help="apellido requerido")
-parser.add_argument("rol", required=True, help="rol requerido")
+
+def parse_user_json():
+    data = request.get_json(force=True, silent=True)
+    if not data:
+        return None, ({"error": "Body JSON requerido"}, 400)
+    missing = [f for f in ("nombre", "apellido", "rol") if f not in data]
+    if missing:
+        return None, ({"error": f"Campos requeridos: {', '.join(missing)}"}, 400)
+    return data, None
 
 
 class Health(Resource):
@@ -24,18 +30,20 @@ class UserList(Resource):
         return users, 200
 
     def post(self):
-        args = parser.parse_args()
+        data, err = parse_user_json()
+        if err:
+            return err
         conn = get_connection()
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO users (nombre, apellido, rol) VALUES (%s, %s, %s) RETURNING id",
-            (args["nombre"], args["apellido"], args["rol"])
+            (data["nombre"], data["apellido"], data["rol"])
         )
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-        return {"id": new_id, "nombre": args["nombre"], "apellido": args["apellido"], "rol": args["rol"]}, 201
+        return {"id": new_id, "nombre": data["nombre"], "apellido": data["apellido"], "rol": data["rol"]}, 201
 
 
 class User(Resource):
@@ -51,6 +59,9 @@ class User(Resource):
         return {"id": row[0], "nombre": row[1], "apellido": row[2], "rol": row[3]}, 200
 
     def put(self, user_id):
+        data, err = parse_user_json()
+        if err:
+            return err
         conn = get_connection()
         cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE id = %s", (user_id,))
@@ -58,15 +69,14 @@ class User(Resource):
             cur.close()
             conn.close()
             return {"error": "Usuario no encontrado"}, 404
-        args = parser.parse_args()
         cur.execute(
             "UPDATE users SET nombre=%s, apellido=%s, rol=%s WHERE id=%s",
-            (args["nombre"], args["apellido"], args["rol"], user_id)
+            (data["nombre"], data["apellido"], data["rol"], user_id)
         )
         conn.commit()
         cur.close()
         conn.close()
-        return {"id": user_id, "nombre": args["nombre"], "apellido": args["apellido"], "rol": args["rol"]}, 200
+        return {"id": user_id, "nombre": data["nombre"], "apellido": data["apellido"], "rol": data["rol"]}, 200
 
     def delete(self, user_id):
         conn = get_connection()
