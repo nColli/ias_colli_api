@@ -1,19 +1,24 @@
 import pytest
-import app.routes as routes_module
-from app import app
+from app import create_app
+from app.db import get_connection
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 @pytest.fixture
 def client():
+    app = create_app()
     app.config["TESTING"] = True
-    routes_module.users = [
-        {"id": 1, "nombre": "Juan", "apellido": "Perez", "rol": "admin"},
-        {"id": 2, "nombre": "Ana", "apellido": "Garcia", "rol": "user"},
-    ]
     with app.test_client() as client:
         yield client
 
 def test_user_lifecycle(client):
-    # Crear
     res = client.post("/users", json={
         "nombre": "Maria",
         "apellido": "Gomez",
@@ -22,12 +27,10 @@ def test_user_lifecycle(client):
     assert res.status_code == 201
     user_id = res.get_json()["id"]
 
-    # Obtener
     res = client.get(f"/users/{user_id}")
     assert res.status_code == 200
     assert res.get_json()["apellido"] == "Gomez"
 
-    # Actualizar
     res = client.put(f"/users/{user_id}", json={
         "nombre": "Maria",
         "apellido": "Gomez",
@@ -36,10 +39,8 @@ def test_user_lifecycle(client):
     assert res.status_code == 200
     assert res.get_json()["rol"] == "superadmin"
 
-    # Eliminar
     res = client.delete(f"/users/{user_id}")
     assert res.status_code == 200
 
-    # Verificar que no existe más
     res = client.get(f"/users/{user_id}")
     assert res.status_code == 404

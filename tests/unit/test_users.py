@@ -1,25 +1,30 @@
 import pytest
-import app.routes as routes_module
-from app import app
+from app import create_app
+from app.db import get_connection
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users")
+    cur.execute("INSERT INTO users (nombre, apellido, rol) VALUES ('Juan', 'Perez', 'admin')")
+    cur.execute("INSERT INTO users (nombre, apellido, rol) VALUES ('Ana', 'Garcia', 'user')")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 @pytest.fixture
 def client():
+    app = create_app()
     app.config["TESTING"] = True
-    # resetea la lista antes de cada test
-    routes_module.users = [
-        {"id": 1, "nombre": "Juan", "apellido": "Perez", "rol": "admin"},
-        {"id": 2, "nombre": "Ana", "apellido": "Garcia", "rol": "user"},
-    ]
     with app.test_client() as client:
         yield client
 
-# Health
 def test_health(client):
     res = client.get("/health")
     assert res.status_code == 200
     assert res.get_json()["status"] == "ok"
 
-# GET /users
 def test_get_users_retorna_lista(client):
     res = client.get("/users")
     assert res.status_code == 200
@@ -29,9 +34,10 @@ def test_get_users_tiene_dos_usuarios(client):
     res = client.get("/users")
     assert len(res.get_json()) == 2
 
-# GET /users/<id>
 def test_get_user_existente(client):
-    res = client.get("/users/1")
+    res = client.get("/users")
+    user_id = res.get_json()[0]["id"]
+    res = client.get(f"/users/{user_id}")
     assert res.status_code == 200
     assert res.get_json()["nombre"] == "Juan"
 
@@ -39,7 +45,6 @@ def test_get_user_no_existente(client):
     res = client.get("/users/9999")
     assert res.status_code == 404
 
-# POST /users
 def test_create_user(client):
     res = client.post("/users", json={
         "nombre": "Carlos",
@@ -55,15 +60,16 @@ def test_create_user_genera_id(client):
         "apellido": "Lopez",
         "rol": "user"
     })
-    assert res.get_json()["id"] == 3
+    assert "id" in res.get_json()
 
 def test_create_user_faltan_campos(client):
     res = client.post("/users", json={"nombre": "Solo nombre"})
     assert res.status_code == 400
 
-# PUT /users/<id>
 def test_update_user(client):
-    res = client.put("/users/1", json={
+    res = client.get("/users")
+    user_id = res.get_json()[0]["id"]
+    res = client.put(f"/users/{user_id}", json={
         "nombre": "Juan",
         "apellido": "Perez",
         "rol": "superadmin"
@@ -79,9 +85,10 @@ def test_update_user_no_existente(client):
     })
     assert res.status_code == 404
 
-# DELETE /users/<id>
 def test_delete_user(client):
-    res = client.delete("/users/1")
+    res = client.get("/users")
+    user_id = res.get_json()[0]["id"]
+    res = client.delete(f"/users/{user_id}")
     assert res.status_code == 200
 
 def test_delete_user_no_existente(client):
@@ -89,6 +96,8 @@ def test_delete_user_no_existente(client):
     assert res.status_code == 404
 
 def test_delete_user_reduce_lista(client):
-    client.delete("/users/1")
+    res = client.get("/users")
+    user_id = res.get_json()[0]["id"]
+    client.delete(f"/users/{user_id}")
     res = client.get("/users")
     assert len(res.get_json()) == 1
