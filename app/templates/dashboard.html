@@ -5,8 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>User Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #loader {
+      position: fixed; top: 0; left: 0; width: 0; height: 3px;
+      background: #6366f1; transition: width 0.2s ease; z-index: 9999;
+    }
+    #loader.active { animation: progress 1.2s ease-in-out infinite; }
+    @keyframes progress {
+      0%   { width: 0; opacity: 1; }
+      70%  { width: 85%; opacity: 1; }
+      100% { width: 100%; opacity: 0; }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+  <div id="loader"></div>
 
   <header class="bg-indigo-700 text-white px-6 py-4 flex items-center justify-between shadow">
     <h1 class="text-2xl font-bold tracking-tight">User Dashboard</h1>
@@ -115,12 +128,24 @@
     let currentUser = null;
     let formMode = null; // 'create' | 'edit'
 
+    function setLoading(on) {
+      document.getElementById('loader').classList.toggle('active', on);
+    }
+
     async function loadUsers() {
+      setLoading(true);
+      const tbody = document.getElementById('user-list');
+      tbody.innerHTML = `<tr id="spinner-row"><td colspan="5" class="px-4 py-8 text-center">
+        <svg class="animate-spin mx-auto h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+        </svg>
+      </td></tr>`;
       const res = await fetch('/users');
       const users = await res.json();
-      const tbody = document.getElementById('user-list');
-      const empty = document.getElementById('empty-msg');
+      setLoading(false);
       tbody.innerHTML = '';
+      const empty = document.getElementById('empty-msg');
       if (users.length === 0) {
         empty.classList.remove('hidden');
         return;
@@ -198,6 +223,7 @@
 
     async function submitForm(e) {
       e.preventDefault();
+      setLoading(true);
       const body = {
         nombre: document.getElementById('form-nombre').value.trim(),
         apellido: document.getElementById('form-apellido').value.trim(),
@@ -212,6 +238,7 @@
         body: JSON.stringify(body),
       });
       const data = await res.json();
+      setLoading(false);
       if (!res.ok) {
         const err = document.getElementById('form-error');
         err.textContent = data.error || 'Error saving user.';
@@ -224,8 +251,9 @@
     }
 
     async function deleteUser(id) {
-      if (!confirm('Delete this user?')) return;
+      setLoading(true);
       const res = await fetch(`/users/${id}`, { method: 'DELETE' });
+      setLoading(false);
       if (res.ok) {
         toast('User deleted.');
         closePanel();
