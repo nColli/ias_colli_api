@@ -31,10 +31,18 @@ def test_create_user_invalid_content_type(client):
     assert res.status_code in (400, 415)
 
 def test_delete_nonexistent_user(client):
+    res = client.get("/users/9999")
+    if res.status_code != 404:
+        client.delete("/users/9999")
+    
     res = client.delete("/users/9999")
     assert res.status_code == 404
 
 def test_put_nonexistent_user(client):
+    res = client.get("/users/9999")
+    if res.status_code != 404:
+        client.delete("/users/9999")
+
     res = client.put("/users/9999", json={
         "nombre": "X",
         "apellido": "Y",
