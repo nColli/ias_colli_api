@@ -25,7 +25,7 @@ jobs:
             -o /dev/null -w "HTTP status: %{http_code}\n"
 
   deploy-prd:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     steps:
