@@ -39,7 +39,7 @@ class UserList(Resource):
         conn = get_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO users (nombre, apellido, puesto) VALUES (%s, %s, %s) RETURNING id",
+            "INSERT INTO users (nombre, apellido, rol) VALUES (%s, %s, %s) RETURNING id",
             (data["nombre"], data["apellido"], data["rol"]),
         )
         fetch = cur.fetchone()
