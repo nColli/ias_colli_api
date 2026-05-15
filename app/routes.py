@@ -68,7 +68,7 @@ class User(Resource):
         cur.close()
         conn.close()
         if not row:
-            return {"error": "Usuario no encontrado"}, 404
+            return {"error": "Usuario no encontrado en db"}, 404
         return {"id": row[0], "nombre": row[1], "apellido": row[2], "rol": row[3]}, 200
 
     def put(self, user_id):
